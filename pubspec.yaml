@@ -1,0 +1,45 @@
+name: ambalpady
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  intl: ^0.20.2
+  provider: ^6.1.2
+  http: ^0.13.6
+  shared_preferences: ^2.2.2
+
+  package_info_plus: ^5.0.1
+
+  flutter_localizations:
+    sdk: flutter
+
+  uuid: ^4.2.2
+  url_launcher: ^6.2.6
+  lottie: ^2.7.0
+  carousel_slider: ^5.1.1
+
+  clipboard: ^2.0.2
+  share_plus: ^7.2.2
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/lang/
+    - assets/images/
