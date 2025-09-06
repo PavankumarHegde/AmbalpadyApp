@@ -87,6 +87,19 @@ class _SplashScreenState extends State<SplashScreen>
     await checkForUpdate();
   }
 
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      // Try external browser first
+      final extOk = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (extOk) return;
+
+      // Fallback to Chrome Custom Tabs / SFSafariViewController
+      await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    } catch (e) {
+    }
+  }
+
   Future<void> _ensureNotificationsThenProceed() async {
     final prefs = await SharedPreferences.getInstance();
     const promptedKey = 'notif_permission_prompted_v1';
@@ -158,7 +171,8 @@ class _SplashScreenState extends State<SplashScreen>
       }
 
       // Authorized → subscribe (first time only)
-      await _subscribeToTopicIfNeeded(topic: 'topic');
+      await _subscribeTopicsIfNeeded(['topic', 'default', 'all', 'appupdate']);
+
 
       if (!mounted) return;
       setState(() => _subscribed = true);
@@ -184,8 +198,16 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<bool> _isAlreadySubscribed() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool('fcm_topic_subscribed') ?? false;
+    // consider user "already subscribed" if *any one* of the per-topic flags is set
+    final topics = ['topic', 'default', 'all', 'appupdate'];
+    for (final t in topics) {
+      if (prefs.getBool('fcm_topic_subscribed_$t') == true) {
+        return true;
+      }
+    }
+    return false;
   }
+
 
   Future<void> _subscribeToTopicIfNeeded({required String topic}) async {
     final prefs = await SharedPreferences.getInstance();
@@ -239,13 +261,18 @@ class _SplashScreenState extends State<SplashScreen>
         final updateAvailable = (map['update_available'] == true);
 
         String? storeUrl;
+
+// Prefer API-provided link if present
         if (Platform.isIOS) {
           storeUrl = (map['ios_url'] ?? map['store_url'])?.toString();
+          // fallback App Store link if missing
+          storeUrl ??= "https://apps.apple.com/app/idYOUR_APP_ID";
         } else {
           storeUrl = (map['android_url'] ?? map['store_url'])?.toString();
-          // Fallback for Android if store_url was left empty
+          // fallback Play Store link if missing
           storeUrl ??= "https://play.google.com/store/apps/details?id=$packageName";
         }
+
 
         if (latestVersion != null &&
             _compareVersions(currentVersion, latestVersion) < 0) {
@@ -288,7 +315,10 @@ class _SplashScreenState extends State<SplashScreen>
     return 0;
   }
 
-  Future<bool?> _showUpdateDialog({required String storeUrl, required bool mandatory}) {
+  Future<bool?> _showUpdateDialog({
+    required String storeUrl,
+    required bool mandatory,
+  }) {
     return showDialog<bool>(
       context: context,
       barrierDismissible: !mandatory,
@@ -307,10 +337,28 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           FilledButton(
             onPressed: () async {
-              final uri = Uri.parse(storeUrl);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              String url = (storeUrl).trim();
+
+              // If API returned nothing or just root domain, fallback to store link
+              if (url.isEmpty || url == "https://pavankumarhegde.com/ambalpady/update.html") {
+                final packageInfo = await PackageInfo.fromPlatform();
+                final packageName = packageInfo.packageName;
+                url = Platform.isIOS
+                    ? "https://apps.apple.com/app/idYOUR_APP_ID"
+                    : "https://play.google.com/store/apps/details?id=$packageName";
               }
+
+              try {
+                final uri = Uri.parse(url);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else {
+                  debugPrint("Could not launch update URL: $url");
+                }
+              } catch (e) {
+                debugPrint("Launch failed: $e");
+              }
+
               Navigator.of(context).pop(true);
             },
             child: const Text('Update Now'),
@@ -319,6 +367,7 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
+
 
 
   void showUpdateDialog(String storeUrl) {

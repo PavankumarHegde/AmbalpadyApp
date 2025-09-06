@@ -30,7 +30,7 @@ class _MoreScreenState extends State<MoreScreen> {
   String _userCode = '';
 
   // Contact person
-  static const String _contactName = 'Abhay Naik';
+  static const String _contactName = 'Abhay Nayak';
   static const String _contactPhone = '8970816089'; // India
   static const String _trusteesApi =
       'https://pavankumarhegde.com/RUST/api/api.php?resource=trustees';

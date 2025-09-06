@@ -176,9 +176,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         }
       }
 
+      final now = DateTime.now();
       final merged = localById.values
-          .where((e) => !_deletedIds.contains(e['id'] as String))
+          .where((e) =>
+      !_deletedIds.contains(e['id'] as String) &&
+          !(e['timestamp'] as DateTime).isAfter(now))
           .toList();
+
 
       // Sort DESC by time
       merged.sort((a, b) {
