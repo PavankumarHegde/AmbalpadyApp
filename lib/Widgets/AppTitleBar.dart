@@ -5,8 +5,10 @@ class AppTitleBar extends StatelessWidget implements PreferredSizeWidget {
   final bool showBackArrow;
   final Color? backArrowColor;
   final VoidCallback? onBack;
+  /// Defaults to "Ambalpady Nayak Family Trust (R)".
   final String? title;
   final Color? titleColor;
+  final bool showLogo;
 
   const AppTitleBar({
     super.key,
@@ -15,71 +17,92 @@ class AppTitleBar extends StatelessWidget implements PreferredSizeWidget {
     this.onBack,
     this.title,
     this.titleColor,
+    this.showLogo = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final effectiveTitle = title ?? 'Ambalpady Nayak Trust (R)';
 
     return SafeArea(
       bottom: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-        height: preferredSize.height + 12,
-        color: theme.scaffoldBackgroundColor, // Neutral base, not red
-        child: Row(
-          children: [
-            // Back Arrow
-            if (showBackArrow)
-              IconButton(
-                icon: Icon(
-                  Icons.arrow_back,
-                  color: backArrowColor ?? (isDark ? Colors.white70 : Colors.black87),
-                ),
-                onPressed: onBack ?? () => Navigator.of(context).pop(),
-                tooltip: 'Back',
-              ),
-            if (showBackArrow) const SizedBox(width: 4),
+        // Increased left padding for more space at the start
+        padding: const EdgeInsetsDirectional.fromSTEB(24, 12, 16, 12),
+        height: preferredSize.height,
+        color: theme.scaffoldBackgroundColor,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
 
-            // Title or Logo
-            Expanded(
-              child: title != null
-                  ? Text(
-                title!,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w600,
-                  color: titleColor ?? (isDark ? Colors.white : Colors.black87),
-                  fontFamily: 'Poppins',
-                ),
-              )
-                  : RichText(
-                text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
+            // Responsive sizes
+            final double fontSize = (w / 13.5).clamp(18.0, 26.0);
+            // Make icon a bit larger than text for better visual balance
+            final double logoHeight = (fontSize * 1.35).clamp(28.0, 44.0);
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (showBackArrow)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 8),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: backArrowColor ?? (isDark ? Colors.white70 : Colors.black87),
+                      ),
+                      onPressed: onBack ?? () => Navigator.of(context).maybePop(),
+                      tooltip: 'Back',
+                    ),
                   ),
-                  children: [
-                    TextSpan(
-                      text: 'Club-',
-                      style: TextStyle(color: isDark ? Colors.white : Colors.black),
+
+                if (showLogo) ...[
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 10),
+                    child: Image.asset(
+                      'assets/images/ambalpady.png',
+                      height: logoHeight,
+                      fit: BoxFit.contain,
+                      errorBuilder: (c, e, st) => Icon(
+                        Icons.image_outlined,
+                        size: logoHeight,
+                        color: isDark ? Colors.white38 : Colors.black38,
+                      ),
+                      semanticLabel: 'Ambalpady logo',
                     ),
-                    const TextSpan(
-                      text: 'Ignite',
-                      style: TextStyle(color: AppTheme.primaryRed),
+                  ),
+                ],
+
+                // Title scales down gracefully if space is tight
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      effectiveTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w700,
+                        color: titleColor ?? (isDark ? Colors.white : Colors.black87),
+                        fontFamily: 'Poppins',
+                        letterSpacing: 0.2,
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
   }
 
+  // Slightly taller to accommodate larger logo
   @override
-  Size get preferredSize => const Size.fromHeight(64);
+  Size get preferredSize => const Size.fromHeight(72);
 }

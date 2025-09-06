@@ -36,22 +36,29 @@ class BottomMenu extends StatelessWidget {
         fontFamily: 'Poppins',
       ),
 
-      items: const [
-        BottomNavigationBarItem(
+      items: [
+        const BottomNavigationBarItem(
           icon: Icon(Icons.home_outlined),
           label: 'Home',
         ),
-        BottomNavigationBarItem(
+        const BottomNavigationBarItem(
           icon: Icon(Icons.event_note_outlined),
-          label: 'Programs',
+          label: 'Events',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.book_online_outlined),
-          label: 'Bookings',
+          icon: Badge.count(
+            count: 1,
+            child: const Icon(Icons.notifications_none),
+          ),
+          activeIcon: Badge.count(
+            count: 1,
+            child: Icon(Icons.notifications),
+          ),
+          label: 'Notifications',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person_outline),
-          label: 'Profile',
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.more_horiz),
+          label: 'More',
         ),
       ],
     );

@@ -1,14 +1,14 @@
+import 'package:ambalpady/Screens/AboutScreen.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart'; // For launching URLs
 
 // Assuming these paths are correct for your project
 import '../../Config/Theme/AppTheme.dart';
-import '../ComingSoonScreen.dart'; // Placeholder for screens not yet implemented
-// Removed: import '../../Utils/theme_notifier.dart'; // No longer using global theme notifier
+import '../ComingSoonScreen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  // No parameters needed as theme changes are now handled locally or by external mechanisms.
   const SettingsScreen({super.key});
 
   @override
@@ -16,7 +16,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _isDarkMode = false;
   bool _areNotificationsEnabled = true;
   String _appVersion = '1.0.0'; // Example app version
 
@@ -24,48 +23,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadSettings();
-    // Removed: themeModeNotifier.addListener(_updateThemeToggle); // No longer listening to global notifier
   }
-
-  @override
-  void dispose() {
-    // Removed: themeModeNotifier.removeListener(_updateThemeToggle); // No longer listening to global notifier
-    super.dispose();
-  }
-
-  // Removed: _updateThemeToggle() method as it relied on themeModeNotifier
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      // Load dark mode preference directly from SharedPreferences.
-      // The app's root widget (e.g., MaterialApp) will need to read this
-      // preference on its own to apply the theme globally.
-      _isDarkMode = prefs.getBool('isDarkMode') ?? false; // Default to false (light mode) if not set
       _areNotificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
-      // In a real app, you'd fetch the actual app version from package_info_plus or similar
     });
-  }
-
-  Future<void> _toggleTheme(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _isDarkMode = value; // Update local state for the switch
-    });
-    // Save the preference to SharedPreferences.
-    // Your MaterialApp will need to read this to apply the theme.
-    await prefs.setBool('isDarkMode', value);
-    _showSnackBar('Theme changed to ${value ? 'Dark' : 'Light'} mode.');
   }
 
   Future<void> _toggleNotifications(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _areNotificationsEnabled = value;
-    });
-    await prefs.setBool('notificationsEnabled', value);
-    _showSnackBar('Notifications ${value ? 'enabled' : 'disabled'}.');
+    try {
+      if (value) {
+        await FirebaseMessaging.instance.subscribeToTopic('topic');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('notificationsEnabled', true);
+        setState(() => _areNotificationsEnabled = true);
+        _showSnackBar('Subscribed for notifications (topic).');
+      } else {
+        await FirebaseMessaging.instance.unsubscribeFromTopic('topic');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('notificationsEnabled', false);
+        setState(() => _areNotificationsEnabled = false);
+        _showSnackBar('Unsubscribed from notifications (topic).');
+      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('notificationsEnabled', value);
+      setState(() => _areNotificationsEnabled = value);
+    } catch (e) {
+      _showSnackBar('Notification setting failed: $e', backgroundColor: Colors.red);
+    }
   }
+
 
   void _showSnackBar(String message, {Color? backgroundColor, Color? textColor}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -84,13 +73,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _launchURL(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
+    final uri = Uri.parse(url);
+    try {
+      // Try external browser first
+      final extOk = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (extOk) return;
+
+      // Fallback to Chrome Custom Tabs / SFSafariViewController
+      await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
+    } catch (e) {
       _showSnackBar('Could not open $url', backgroundColor: Colors.red);
     }
   }
+
 
   Future<void> _confirmDeleteAccount() async {
     final bool? confirm = await showDialog<bool>(
@@ -125,11 +120,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     if (confirm == true) {
-      // Perform account deletion logic here
       _showSnackBar('Account deletion initiated (simulated).', backgroundColor: Colors.orange);
-      // In a real app: call API, clear local data, navigate to login/onboarding
-      // Example: await _authService.deleteUserAccount();
-      // Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginScreen()), (route) => false);
+      // TODO: Call backend & navigate accordingly.
     }
   }
 
@@ -153,7 +145,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         iconTheme: IconThemeData(
-          color: isDark ? Colors.white : Colors.black, // Back button color
+          color: isDark ? Colors.white : Colors.black,
         ),
       ),
       body: SingleChildScrollView(
@@ -161,7 +153,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // General Settings Section
+            // General Settings
             _buildSectionHeader(context, 'General'),
             Card(
               elevation: 2,
@@ -170,14 +162,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               margin: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 children: [
-                  _buildSwitchTile(
-                    context,
-                    Icons.brightness_6_outlined,
-                    'Dark Mode',
-                    _isDarkMode,
-                    _toggleTheme,
-                  ),
-                  _buildDivider(isDark),
+                  // Dark Mode switch REMOVED
+
+                  // Notifications switch
                   _buildSwitchTile(
                     context,
                     Icons.notifications_none_outlined,
@@ -185,12 +172,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _areNotificationsEnabled,
                     _toggleNotifications,
                   ),
+
                   _buildDivider(isDark),
+
                   _buildTile(
                     context,
                     Icons.language_outlined,
                     'Language',
-                    subtitle: 'English', // Example subtitle
+                    subtitle: 'English',
                     onTap: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const ComingSoonScreen()));
                     },
@@ -200,7 +189,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Legal & About Section
+            // Legal & About
             _buildSectionHeader(context, 'Legal & About'),
             Card(
               elevation: 2,
@@ -213,21 +202,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     context,
                     Icons.privacy_tip_outlined,
                     'Privacy Policy',
-                    onTap: () => _launchURL('https://www.example.com/privacy'), // Replace with actual URL
+                    onTap: () => _launchURL('https://pavankumarhegde.com/ambalpady/privacy.html'), // Replace with actual URL
                   ),
                   _buildDivider(isDark),
-                  _buildTile(
-                    context,
-                    Icons.currency_bitcoin_outlined,
-                    'Refund Policy',
-                    onTap: () => _launchURL('https://www.example.com/privacy'), // Replace with actual URL
-                  ),
-                  _buildDivider(isDark),
+
+                  // Refund Policy REMOVED
+
                   _buildTile(
                     context,
                     Icons.description_outlined,
                     'Terms of Service',
-                    onTap: () => _launchURL('https://www.example.com/terms'), // Replace with actual URL
+                    onTap: () => _launchURL('https://pavankumarhegde.com/ambalpady/terms.html'), // Replace with actual URL
                   ),
                   _buildDivider(isDark),
                   _buildTile(
@@ -236,21 +221,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'App Version',
                     subtitle: _appVersion,
                     onTap: () {
-                      // Optionally show app info dialog
-                      showAboutDialog(
-                        context: context,
-                        applicationName: 'Club Ignite',
-                        applicationVersion: _appVersion,
-                        applicationLegalese: '© 2023 Club Ignite. All rights reserved.',
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 15.0),
-                            child: Text(
-                              'Designed to enhance your club experience.',
-                              style: theme.textTheme.bodyMedium,
-                            ),
-                          ),
-                        ],
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AboutScreen(),
+                        ),
                       );
                     },
                   ),
@@ -259,22 +234,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Account Actions Section
-            _buildSectionHeader(context, 'Account Actions'),
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              color: isDark ? Colors.grey.shade900 : Colors.white,
-              margin: const EdgeInsets.symmetric(vertical: 8),
-              child: _buildTile(
-                context,
-                Icons.delete_forever_outlined,
-                'Delete Account',
-                isDestructive: true,
-                onTap: _confirmDeleteAccount,
-              ),
-            ),
-            const SizedBox(height: 40),
+            // Account Actions
+            // _buildSectionHeader(context, 'Account Actions'),
+            // Card(
+            //   elevation: 2,
+            //   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            //   color: isDark ? Colors.grey.shade900 : Colors.white,
+            //   margin: const EdgeInsets.symmetric(vertical: 8),
+            //   child: _buildTile(
+            //     context,
+            //     Icons.delete_forever_outlined,
+            //     'Delete Account',
+            //     isDestructive: true,
+            //     onTap: _confirmDeleteAccount,
+            //   ),
+            // ),
+            // const SizedBox(height: 40),
           ],
         ),
       ),
@@ -314,7 +289,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       secondary: Icon(
         icon,
         size: 24,
-        color: isDark ? AppTheme.primaryRed : AppTheme.primaryRed,
+        color: AppTheme.primaryRed,
       ),
       value: value,
       onChanged: onChanged,
@@ -325,7 +300,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildTile(
-      BuildContext context, IconData icon, String title, {String? subtitle, bool isDestructive = false, required VoidCallback onTap}) {
+      BuildContext context,
+      IconData icon,
+      String title, {
+        String? subtitle,
+        bool isDestructive = false,
+        required VoidCallback onTap,
+      }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -334,7 +315,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       leading: Icon(
         icon,
         size: 24,
-        color: isDestructive ? Colors.red.shade600 : (isDark ? AppTheme.primaryRed : AppTheme.primaryRed),
+        color: isDestructive ? Colors.red.shade600 : AppTheme.primaryRed,
       ),
       title: Text(
         title,
@@ -354,7 +335,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       )
           : null,
       trailing: isDestructive
-          ? null // No arrow for destructive actions, handled by button in dialog
+          ? null
           : Icon(
         Icons.arrow_forward_ios_rounded,
         size: 18,
@@ -369,7 +350,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Divider(
       height: 0,
       thickness: 0.5,
-      indent: 20, // Align with list tile content
+      indent: 20,
       endIndent: 20,
       color: isDark ? Colors.grey.shade700 : Colors.grey.shade200,
     );

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../../Widgets/AppTitleBar.dart';
 import '../../Widgets/BottomMenu.dart';
 import 'HomeContent.dart';
-import 'MyBookingsScreen.dart';
-import 'ProfileScreen.dart';
-import 'ProgramsScreen.dart';
+import 'NotificationsScreen.dart';
+import 'MoreScreen.dart';
+import 'FestivalCalendarScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,9 +18,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _pages = [
     const HomeContent(),        // Placeholder for home dashboard
-    const ProgramsScreen(),
-    const MyBookingsScreen(),
-    const ProfileScreen(),
+    const FestivalCalendarScreen(),
+    const NotificationsScreen(),
+    const MoreScreen(),
   ];
 
   void _onNavTapped(int index) {
